@@ -12,13 +12,13 @@ const generateAccessTokenAndRefreshTokens = async (userid) => {
     try {
         const user = await User.findById(userid);
         const accesstoken = await user.generateAccessToken();
-        const refereshtoken = await user.generateRefreshToken();
+        const refreshtoken = await user.generateRefreshToken();
 
-        user.refereshtoken = refereshtoken;
+        user.refreshtoken = refreshtoken;
 
         await user.save({ validateBeforeSave: false });
 
-        return { accesstoken, refereshtoken }
+        return { accesstoken, refreshtoken }
     } catch (error) {
         throw new ApiError(500, "Something went wrong while generating refresh and access token")
     }
@@ -370,6 +370,13 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
                 "as": "subscribedTo"
             }
         }, {
+            $lookup: {
+                "from": "videos",
+                "localField": "_id",
+                "foreignField": "owner",
+                "as": "videos"
+            }
+        },{
             $addFields: {
                 subscribersCount: {
                     $size: "$subscribers"
@@ -383,6 +390,10 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
                         then: true,
                         else: false
                     }
+                },
+
+                isOwnChannel: {
+                    $eq: [username.toLowerCase(), req.user?.username?.toLowerCase()]
                 }
 
             },
@@ -396,56 +407,66 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
                 avatar: 1,
                 coverImage: 1,
                 isSubscribed: 1,
-                email: 1
+                isOwnChannel:1,
+                videos: {
+                    _id: 1,
+                    title: 1,
+                    thumbnail: 1,
+                    view: 1,
+                    duration: 1,
+                    createdAt: 1,
+                    isPublished: 1,
+                    videoFile:1
+                }
             }
 
         }
     ])
 
-    if(!channel?.length){
+    if (!channel?.length) {
         throw new ApiError(404, "channel does not exist")
     }
 
     return res
-    .status(200)
-    .json(
-        new ApiResponse(200, channel[0], "user channel fetched succesfully")
-    )
+        .status(200)
+        .json(
+            new ApiResponse(200, channel[0], "user channel fetched succesfully")
+        )
 })
 
-const getWatchHistory = asyncHandler( async (req,res)=>{
+const getWatchHistory = asyncHandler(async (req, res) => {
     const user = await User.aggregate([
         {
-            $match:{
-                _id: new mongoose.Types.ObjectId( req.user?._id )
+            $match: {
+                _id: new mongoose.Types.ObjectId(req.user?._id)
             }
-        },{
-            $lookup:{
-                from:"videos",
-                localField:"watchHistory",
-                foreignField:"_id",
-                as:"watchHistory",
-                pipeline:[
+        }, {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                pipeline: [
                     {
-                        $lookup:{
-                            from:"users",
-                            localField:"owner",
-                            foreignField:"_id",
-                            as:"owner",
-                            pipeline:[
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
                                 {
-                                    $project:{
-                                        fullname:1,
-                                        username:1,
-                                        avatar:1
+                                    $project: {
+                                        fullname: 1,
+                                        username: 1,
+                                        avatar: 1
                                     }
                                 }
                             ]
                         }
                     },
                     {
-                        $addFields:{
-                            owner:{
+                        $addFields: {
+                            owner: {
                                 $first: "$owner"
                             }
                         }
@@ -455,19 +476,19 @@ const getWatchHistory = asyncHandler( async (req,res)=>{
         },
     ])
 
-    if(!user?.length){
+    if (!user?.length) {
         throw new ApiError(400, "Error getting watch history");
     }
 
     return res
-    .status(200)
-    .json(
-        new ApiResponse(
-            200,
-             user[0].watchHistory,
-             "Watch history fetched successfully"
-             )
-    )
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                user[0].watchHistory,
+                "Watch history fetched successfully"
+            )
+        )
 })
 export {
     registerUser,
