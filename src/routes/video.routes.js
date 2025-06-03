@@ -2,7 +2,15 @@ import { Router } from "express";
 import {
     addNewVideo,
     getAllMyVideos,
-    getAllVideos
+    getAllVideos,
+    playTheVideo,
+    increaseViewandUpdateWatchHistory,
+    updateLikes,
+    updateDislikes,
+    getRelatedVideos,
+    getWatchedVideos,
+    getLikedVideos,
+    removeVideo
 } from "../controllers/video.controller.js";
 import { upload } from "../middlewares/multer.middleware.js"
 import { verifyJWT } from "../middlewares/auth.middleware.js"
@@ -36,7 +44,17 @@ router.route("/new-video").post(verifyJWT,
     ]),
     addNewVideo
 );
-router.route("/get-all-video-list").get(verifyJWT,getAllVideos);
+
+router.route("/v/:videoId").get(playTheVideo);
+router.route("/get-all-video-list").post(verifyJWT,getAllVideos);
+router.route("/get-related-video-list").post(verifyJWT,getRelatedVideos);
+router.route("/get-liked-video-list").post(verifyJWT,getLikedVideos);
+router.route("/get-watched-video-list").post(verifyJWT,getWatchedVideos);
+router.route("/increase-view").patch(verifyJWT,increaseViewandUpdateWatchHistory);
+router.route("/deleteVideo").post(verifyJWT,removeVideo);
+//likes
+router.route("/updateLikes").post(verifyJWT,updateLikes);
+router.route("/updateDislikes").post(verifyJWT,updateDislikes);
 
 
 export default router;

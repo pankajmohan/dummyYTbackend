@@ -22,7 +22,16 @@ const uploadOnCloudinary = async (localFilePath) => {
         if(!localFilePath) {console.log("No local file path provided") 
             return null}
         const response = await cloudinary.uploader.upload(localFilePath,{
-            resource_type:"auto"
+            resource_type:"auto",
+            transformation: [
+        {
+          quality: "auto:good",     
+          fetch_format: "auto",     
+          video_codec: "auto",      
+          width: 1280,              
+          crop: "limit"
+        }
+      ]
         })
         //file has been uploaded successfully
         console.log("file is uploaded on cloudinary", response.url);
@@ -34,5 +43,26 @@ const uploadOnCloudinary = async (localFilePath) => {
     }
 }
 
+const removeOnCloudinary = async ( public_id ) => {
+  if (!public_id) {
+    throw new Error('Missing public_id');
+  }
 
-export {uploadOnCloudinary}
+  try {
+    const result = await cloudinary.uploader.destroy(public_id, {
+      resource_type: "auto", // Use "image", "video", or "raw" if needed
+    });
+
+    if (result.result === 'ok') {
+      return { success: true, result };
+    } else {
+      return { success: false, error: 'Failed to delete media', result };
+    }
+  } catch (error) {
+    return { success: false, error: 'Cloudinary error', details: error.message };
+  }
+};
+
+
+
+export {uploadOnCloudinary ,removeOnCloudinary}

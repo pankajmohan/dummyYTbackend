@@ -252,7 +252,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     }
 
     const user = await User.findByIdAndUpdate(
-        req.user?._id,
+        videoId,
         {
             $set: {
                 fullName,
