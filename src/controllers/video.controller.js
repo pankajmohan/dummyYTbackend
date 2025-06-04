@@ -134,7 +134,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
             $unwind: "$ownerInfo"
         }, {
             $addFields:{
-                viewCount: { $size: "$views" }
+                viewCount: { $size: "$view" }
             }
         },{
             $project: {
