@@ -60,8 +60,8 @@ const addNewVideo = asyncHandler(async (req, res) => {
     // ).select("-password");
     // console.log(req.body)
     const newVideo = await Video.create({
-        public_Video:video?.public_id,
-        public_Thumb:thumbnail?.public_id,
+        public_Video: video?.public_id,
+        public_Thumb: thumbnail?.public_id,
         videoFile: video?.url,
         thumbnail: thumbnail?.url,
         title,
@@ -123,15 +123,27 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
             }
         }, {
+            $lookup: {
+                from: "views",
+                localField:"_id",
+                foreignField:"viewedfile",
+                as:"view"
+
+            }
+        }, {
             $unwind: "$ownerInfo"
         }, {
+            $addFields:{
+                viewCount: { $size: "$views" }
+            }
+        },{
             $project: {
                 _id: 1,
                 videoFile: 1,
                 thumbnail: 1,
                 title: 1,
                 description: 1,
-                view: 1,
+                viewCount: 1,
                 createdAt: 1,
                 duration: 1,
                 "ownerInfo._id": 1,
@@ -810,17 +822,17 @@ const removeVideo = asyncHandler(async (req, res) => {
 
     if (!resultVideo || !resultThumb) throw new ApiError(400, "Error removing video from cloudinary")
 
-        const result = await Video.findByIdAndDelete(videoId);
-    
-        if(!result) throw new ApiError(400, "Error removing video ")
-    
+    const result = await Video.findByIdAndDelete(videoId);
+
+    if (!result) throw new ApiError(400, "Error removing video ")
+
 
     const videos = await Video.find({ owner: user._id });
 
     return res.status(200)
-    .json(
-        new ApiResponse(200, { videos }, "Related videos fetched successfully")
-    );
+        .json(
+            new ApiResponse(200, { videos }, "Related videos fetched successfully")
+        );
 });
 
 

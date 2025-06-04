@@ -351,78 +351,108 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     }
 
     const channel = await User.aggregate([
+  {
+    $match: {
+      username: username?.toLowerCase()
+    }
+  },
+  {
+    $lookup: {
+      from: "subscriptions",
+      localField: "_id",
+      foreignField: "channel",
+      as: "subscribers"
+    }
+  },
+  {
+    $lookup: {
+      from: "subscriptions",
+      localField: "_id",
+      foreignField: "subscriber",
+      as: "subscribedTo"
+    }
+  },
+  {
+    $lookup: {
+      from: "videos",
+      let: { ownerId: "$_id" },
+      pipeline: [
         {
-            $match: {
-                username: username?.toLowerCase(),
-
-            }
-        }, {
-            $lookup: {
-                "from": "subscriptions",
-                "localField": "_id",
-                "foreignField": "channel",
-                "as": "subscribers"
-            }
-        }, {
-            $lookup: {
-                "from": "subscriptions",
-                "localField": "_id",
-                "foreignField": "subscriber",
-                "as": "subscribedTo"
-            }
-        }, {
-            $lookup: {
-                "from": "videos",
-                "localField": "_id",
-                "foreignField": "owner",
-                "as": "videos"
-            }
-        },{
-            $addFields: {
-                subscribersCount: {
-                    $size: "$subscribers"
-                },
-                channelsSubscribedToCount: {
-                    $size: "$subscribedTo"
-                },
-                isSubscribed: {
-                    $cond: {
-                        if: { $in: [req.user?._id, "$subscribers.subscriber"] },
-                        then: true,
-                        else: false
-                    }
-                },
-
-                isOwnChannel: {
-                    $eq: [username.toLowerCase(), req.user?.username?.toLowerCase()]
+          $match: {
+            $expr: { $eq: ["$owner", "$$ownerId"] }
+          }
+        },
+        {
+          $lookup: {
+            from: "views",
+            let: { videoId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ["$viewedfile", "$$videoId"] }
                 }
-
-            },
-        }, {
-
-            $project: {
-                username: 1,
-                fullName: 1,
-                subscribersCount: 1,
-                channelsSubscribedToCount: 1,
-                avatar: 1,
-                coverImage: 1,
-                isSubscribed: 1,
-                isOwnChannel:1,
-                videos: {
-                    _id: 1,
-                    title: 1,
-                    thumbnail: 1,
-                    view: 1,
-                    duration: 1,
-                    createdAt: 1,
-                    isPublished: 1,
-                    videoFile:1
-                }
+              },
+              {
+                $count: "viewCount"
+              }
+            ],
+            as: "viewData"
+          }
+        },
+        {
+          $addFields: {
+            viewCount: {
+              $ifNull: [{ $arrayElemAt: ["$viewData.viewCount", 0] }, 0]
             }
-
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            title: 1,
+            thumbnail: 1,
+            duration: 1,
+            createdAt: 1,
+            isPublished: 1,
+            videoFile: 1,
+            viewCount: 1
+          }
         }
-    ])
+      ],
+      as: "videos"
+    }
+  },
+  {
+    $addFields: {
+      subscribersCount: { $size: "$subscribers" },
+      channelsSubscribedToCount: { $size: "$subscribedTo" },
+      isSubscribed: {
+        $cond: {
+          if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+          then: true,
+          else: false
+        }
+      },
+      isOwnChannel: {
+        $eq: [username.toLowerCase(), req.user?.username?.toLowerCase()]
+      }
+    }
+  },
+  {
+    $project: {
+      username: 1,
+      fullName: 1,
+      subscribersCount: 1,
+      channelsSubscribedToCount: 1,
+      avatar: 1,
+      coverImage: 1,
+      isSubscribed: 1,
+      isOwnChannel: 1,
+      videos: 1
+    }
+  }
+]);
+
 
     if (!channel?.length) {
         throw new ApiError(404, "channel does not exist")
